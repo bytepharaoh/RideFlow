@@ -40,7 +40,7 @@ func TestLoadUsesDefaultsWhenEnvVarsNotSet(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.HTTPPort != 8080 {
+	if cfg.HTTPPort != 8082 {
 		t.Fatalf("HTTPPort = %d, want %d", cfg.HTTPPort, 8080)
 	}
 

@@ -24,7 +24,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	port, err := pkgconfig.GetInt("TRIP_HTTP_PORT", 8080)
+	port, err := pkgconfig.GetInt("TRIP_HTTP_PORT", 8082)
 	if err != nil {
 		return nil, fmt.Errorf("trip config: %w", err)
 	}

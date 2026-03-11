@@ -11,7 +11,7 @@ func TestHealthHandlerRejectsNonGet(t *testing.T) {
 	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/health", nil)
 	recorder := httptest.NewRecorder()
 
-	handler := healthHundler("trip")
+	handler := healthHandler("trip")
 	handler.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusMethodNotAllowed {

@@ -22,7 +22,7 @@ func New(port int, serviceName string, logger *slog.Logger) *Server {
 		logger:       logger,
 		servinceName: serviceName,
 	}
-	mux.HandleFunc("/health", healthHundler(serviceName))
+	mux.HandleFunc("/health", healthHandler(serviceName))
 	s.http = &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
