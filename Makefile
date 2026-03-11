@@ -67,7 +67,7 @@ run-gateway: ## Run the gateway service locally
 
 .PHONY: run-trip
 run-trip: ## Run the trip service locally
-	$(GO) run ./$(CMD_DIR)/trip
+	-$(GO) run ./$(CMD_DIR)/trip
 
 .PHONY: run-driver
 run-driver: ## Run the driver service locally
