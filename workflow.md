@@ -76,3 +76,25 @@ rideshare/
 ├── go.sum
 ├── Makefile
 └── README.md
+
+--------
+pkg/config/
+├── config.go         ← GetString, GetInt, GetBool
+├── config_test.go    ← tests for helpers
+├── dotenv.go         ← custom .env parser, no external dependency
+└── dotenv_test.go    ← 5 tests covering all edge cases
+
+pkg/logger/
+└── logger.go         ← structured JSON logger using slog
+
+internal/trip/
+├── config/
+│   ├── config.go     ← typed Config struct, Load(), fail-fast
+│   └── config_test.go
+└── server/
+    ├── server.go     ← HTTP server with timeouts, Start, Shutdown
+    ├── server_test.go
+    └── health.go     ← /health endpoint
+
+cmd/trip/
+└── main.go           ← wiring only, ~60 lines

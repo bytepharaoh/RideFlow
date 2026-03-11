@@ -49,6 +49,14 @@ func TestLoadEnvDoesNotOverrideExistingValues(t *testing.T) {
 	}
 }
 
+func TestLoadEnvReturnsNilForMissingFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "does-not-exist-rideflow.env")
+
+	if err := config.LoadEnv(path); err != nil {
+		t.Fatalf("LoadEnv() error = %v, want nil for missing file", err)
+	}
+}
+
 func TestLoadEnvRejectsInvalidLine(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, ".env")
@@ -59,5 +67,18 @@ func TestLoadEnvRejectsInvalidLine(t *testing.T) {
 
 	if err := config.LoadEnv(path); err == nil {
 		t.Fatal("LoadEnv() error = nil, want non-nil")
+	}
+}
+
+func TestLoadEnvRejectsEmptyKey(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+
+	if err := os.WriteFile(path, []byte("=somevalue\n"), 0o600); err != nil {
+		t.Fatalf("os.WriteFile() error = %v", err)
+	}
+
+	if err := config.LoadEnv(path); err == nil {
+		t.Fatal("LoadEnv() error = nil, want non-nil for empty key")
 	}
 }
