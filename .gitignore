@@ -1,0 +1,42 @@
+# ── Compiled binaries ──────────────────────────────────────────
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# ── Go toolchain artifacts ─────────────────────────────────────
+*.test          # test binaries produced by go test -c
+*.out           # coverage output files
+vendor/         # if you ever run go mod vendor, don't commit it
+
+# ── Environment / secrets ──────────────────────────────────────
+.env
+.env.local
+.env.*.local    # .env.development.local, .env.test.local, etc.
+
+# ── IDE and editor files ───────────────────────────────────────
+.idea/
+.vscode/
+*.swp           # vim swap files
+*.swo
+.DS_Store       # macOS folder metadata — pollutes repos on Mac
+
+# ── Docker ─────────────────────────────────────────────────────
+# Don't ignore docker-compose.yml — that's intentional source
+# But ignore any local override files
+docker-compose.override.yml
+
+# ── Generated protobuf code ────────────────────────────────────
+# Two schools of thought here — explained below
+# proto/gen/
+
+# ── Test coverage ──────────────────────────────────────────────
+coverage.out
+coverage.html
+
+# ── macOS ──────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
