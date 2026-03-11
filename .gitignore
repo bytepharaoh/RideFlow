@@ -10,6 +10,7 @@ bin/
 *.test          # test binaries produced by go test -c
 *.out           # coverage output files
 vendor/         # if you ever run go mod vendor, don't commit it
+.cache/
 
 # ── Environment / secrets ──────────────────────────────────────
 .env

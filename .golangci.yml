@@ -1,0 +1,47 @@
+# .golangci.yml
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  default: none
+  enable:
+    # ── Bugs ──────────────────────────────────────────────
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+
+    # ── Style ─────────────────────────────────────────────
+    - misspell
+
+    # ── Complexity ────────────────────────────────────────
+    - gocognit
+    - funlen
+
+    # ── Safety ────────────────────────────────────────────
+    - gosec
+    - bodyclose
+    - noctx
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+linters-settings:
+  funlen:
+    lines: 80
+    statements: 40
+
+  gocognit:
+    min-complexity: 15
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - funlen
+        - gosec
