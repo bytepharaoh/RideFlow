@@ -122,3 +122,9 @@ clean: ## Remove build artifacts
 	@rm -rf $(BINARY_DIR)
 	@rm -f coverage.out coverage.html
 	@echo "Cleaned."	
+.PHONY: push
+push: ## push to github
+	git push -u origin master   
+.PHONY: add
+add:
+	git add .
