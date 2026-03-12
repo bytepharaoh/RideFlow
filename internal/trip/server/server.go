@@ -10,6 +10,7 @@ import (
 
 	tripv1 "github.com/bytepharoh/rideflow/internal/trip/gen/proto/trip"
 	tripgrpc "github.com/bytepharoh/rideflow/internal/trip/grpc"
+	tripservice "github.com/bytepharoh/rideflow/internal/trip/service"
 	"google.golang.org/grpc"
 )
 
@@ -21,7 +22,7 @@ type Server struct {
 	servinceName string
 }
 
-func New(httpPort int, grpcPort int, serviceName string, logger *slog.Logger) *Server {
+func New(httpPort int, grpcPort int, serviceName string, logger *slog.Logger, svc *tripservice.TripService) *Server {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", healthHandler(serviceName))
@@ -35,7 +36,7 @@ func New(httpPort int, grpcPort int, serviceName string, logger *slog.Logger) *S
 	}
 
 	grpcSrv := grpc.NewServer()
-	tripGRPCServer := tripgrpc.New(logger)
+	tripGRPCServer := tripgrpc.New(svc, logger)
 	tripv1.RegisterTripServiceServer(grpcSrv, tripGRPCServer)
 
 	return &Server{

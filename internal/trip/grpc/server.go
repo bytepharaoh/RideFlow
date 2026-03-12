@@ -3,52 +3,45 @@ package grpc
 import (
 	"context"
 	"log/slog"
-	"strings"
 
-	tripv1 "github.com/bytepharoh/rideflow/internal/trip/gen/proto/trip"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	tripv1 "github.com/bytepharoh/rideflow/internal/trip/gen/proto/trip"
+	"github.com/bytepharoh/rideflow/internal/trip/service"
 )
+
+const maxInt32 = int(^uint32(0) >> 1)
 
 type Server struct {
 	tripv1.UnimplementedTripServiceServer
+	svc    *service.TripService
 	logger *slog.Logger
 }
 
-func New(logger *slog.Logger) *Server {
+func New(svc *service.TripService, logger *slog.Logger) *Server {
 	return &Server{
+		svc:    svc,
 		logger: logger,
 	}
 }
 func (s *Server) PreviewTrip(
-	ctx context.Context, req *tripv1.PreviewTripRequest,
+	ctx context.Context,
+	req *tripv1.PreviewTripRequest,
 ) (*tripv1.PreviewTripResponse, error) {
-	if req == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "request is required")
+	result, err := s.svc.PreviewTrip(ctx, req.GetOrigin(), req.GetDestination())
+	if err != nil {
+		s.logger.Error("preview trip failed", "error", err)
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if result.ETAMinutes < 0 || result.ETAMinutes > maxInt32 {
+		s.logger.Error("preview trip failed", "eta_minutes", result.ETAMinutes)
+		return nil, status.Error(codes.Internal, "eta minutes is out of range")
 	}
 
-	origin := strings.TrimSpace(req.GetOrigin())
-	destination := strings.TrimSpace(req.GetDestination())
-
-	if origin == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "origin is required")
-
-	}
-	if destination == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "destination is required")
-	}
-	if strings.EqualFold(origin, destination) {
-		return nil, status.Errorf(codes.InvalidArgument, "origin and destination must be different")
-	}
-	s.logger.Info("preview trip requested",
-		"origin", origin,
-		"destination", destination,
-	)
-	// TODO Phase 6: replace with real route and fare calculation.
 	return &tripv1.PreviewTripResponse{
-		DistanceKm:   25.0,
-		FareEstimate: 45.00,
-		EtaMinutes:   35,
+		DistanceKm:   result.DistanceKM,
+		FareEstimate: result.FareEstimate,
+		EtaMinutes:   int32(result.ETAMinutes),
 	}, nil
-
 }
