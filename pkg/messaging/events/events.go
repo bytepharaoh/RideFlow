@@ -13,9 +13,11 @@ const (
 	RoutingKeyTripCompleted  = "trip.completed"
 
 	// Queue names — one per consumer per event type
-	QueueDriverTripCreated    = "driver.trip.created"
-	QueueTripDriverAssigned   = "trip.driver.assigned"
-	QueuePaymentTripCompleted = "payment.trip.completed"
+	QueueDriverTripCreated     = "driver.trip.created"
+	QueueTripDriverAssigned    = "trip.driver.assigned"
+	QueueGatewayDriverAssigned = "gateway.driver.assigned"
+	QueueGatewayTripCompleted  = "gateway.trip.completed"
+	QueuePaymentTripCompleted  = "payment.trip.completed"
 )
 
 // TripCreated is published by the Trip Service when a new trip is created.
@@ -32,8 +34,13 @@ type TripCreated struct {
 // DriverAssigned is published by the Driver Service when a driver accepts.
 // The Trip Service consumes this to update the trip status.
 type DriverAssigned struct {
-	TripID   string `json:"trip_id"`
-	DriverID string `json:"driver_id"`
+	TripID     string  `json:"trip_id"`
+	DriverID   string  `json:"driver_id"`
+	RiderID    string  `json:"rider_id"`
+	DriverName string  `json:"driver_name"`
+	Vehicle    string  `json:"vehicle"`
+	DriverLat  float64 `json:"driver_lat"`
+	DriverLng  float64 `json:"driver_lng"`
 }
 
 // TripCompleted is published by the Trip Service when a trip ends.

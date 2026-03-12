@@ -20,6 +20,7 @@ type Config struct {
 	WriteTimeout    time.Duration
 	IdleTimeout     time.Duration
 	TripServiceAddr string
+	RabbitMQURL     string
 	LogLevel        string
 }
 
@@ -48,6 +49,7 @@ func Load() (*Config, error) {
 		WriteTimeout:    time.Duration(writeTimeout) * time.Second,
 		IdleTimeout:     time.Duration(idleTimeout) * time.Second,
 		TripServiceAddr: pkgconfig.GetString("TRIP_SERVICE_ADDR", "localhost:50051"),
+		RabbitMQURL:     pkgconfig.GetString("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 		LogLevel:        pkgconfig.GetString("GATEWAY_LOG_LEVEL", "info"),
 	}, nil
 }

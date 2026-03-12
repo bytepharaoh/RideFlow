@@ -79,8 +79,13 @@ func (c *TripConsumer) handleTripCreated(ctx context.Context, body []byte) error
 
 	// Publish DriverAssigned event — Trip Service will consume this.
 	assigned := events.DriverAssigned{
-		TripID:   event.TripID,
-		DriverID: driver.ID,
+		TripID:     event.TripID,
+		DriverID:   driver.ID,
+		RiderID:    event.RiderID,
+		DriverName: driver.Name,
+		Vehicle:    driver.Vehicle,
+		DriverLat:  driver.Location.Latitude,
+		DriverLng:  driver.Location.Longitude,
 	}
 
 	if err := c.publisher.Publish(ctx, events.RoutingKeyDriverAssigned, assigned); err != nil {

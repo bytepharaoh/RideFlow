@@ -4,7 +4,10 @@
 package middleware
 
 import (
+	"bufio"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 )
@@ -18,8 +21,10 @@ type responseWriter struct {
 func NewResponseHandler(w http.ResponseWriter) *responseWriter {
 	return &responseWriter{
 		ResponseWriter: w,
-		status:         http.StatusOK}
+		status:         http.StatusOK,
+	}
 }
+
 func (rw *responseWriter) WriteHeader(status int) {
 	if rw.wrote {
 		return
@@ -46,5 +51,19 @@ func Logger(log *slog.Logger) func(http.Handler) http.Handler {
 			)
 
 		})
+	}
+}
+
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hijacker, ok := rw.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
+	}
+	return hijacker.Hijack()
+}
+
+func (rw *responseWriter) Flush() {
+	if flusher, ok := rw.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
 	}
 }

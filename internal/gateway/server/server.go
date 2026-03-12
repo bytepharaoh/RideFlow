@@ -22,6 +22,7 @@ import (
 	"github.com/bytepharoh/rideflow/internal/gateway/handler"
 	"github.com/bytepharoh/rideflow/internal/gateway/middleware"
 	"github.com/bytepharoh/rideflow/internal/gateway/response"
+	"github.com/bytepharoh/rideflow/internal/gateway/ws"
 )
 
 type Server struct {
@@ -31,15 +32,14 @@ type Server struct {
 
 // New builds the server with all routes and middleware registered.
 // It does not start listening — call Start() for that.
-func New(cfg *config.Config, logger *slog.Logger, tripClient *client.TripClient) *Server {
+func New(cfg *config.Config, logger *slog.Logger, tripClient *client.TripClient, wsHandler *ws.Handler) *Server {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger(logger))
 	r.Use(chimiddleware.Recoverer)
 
-	// ── API v1 routes
-
 	r.Get("/health", healthHandler(cfg.ServiceName))
+	r.Get("/ws", wsHandler.ServeWS)
 
 	tripHandler := handler.NewTripHandler(tripClient)
 	r.Route("/api/v1", func(r chi.Router) {
@@ -83,9 +83,8 @@ func (s *Server) Start() error {
 	s.logger.Info("http server listening", "addr", s.http.Addr)
 	return s.http.ListenAndServe()
 }
-func (s *Server) Shutdown(ctx context.Context) error {
 
+func (s *Server) Shutdown(ctx context.Context) error {
 	s.logger.Info("stopping http server")
 	return s.http.Shutdown(ctx)
-
 }

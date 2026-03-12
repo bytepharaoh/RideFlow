@@ -128,3 +128,5 @@ push: ## push to github
 .PHONY: add
 add:
 	git add .
+test-flow: ## Run end-to-end flow test (requires all services running)
+	@bash scripts/make-test.sh
