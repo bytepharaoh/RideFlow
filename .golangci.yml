@@ -25,23 +25,20 @@ linters:
     - gosec
     - bodyclose
     - noctx
+  settings:
+    funlen:
+      lines: 80
+      statements: 40
+    gocognit:
+      min-complexity: 15
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - gosec
 
 formatters:
   enable:
     - gofmt
     - goimports
-
-linters-settings:
-  funlen:
-    lines: 80
-    statements: 40
-
-  gocognit:
-    min-complexity: 15
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - funlen
-        - gosec

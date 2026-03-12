@@ -31,28 +31,12 @@ func LoadEnv(path string) (err error) {
 		lineNumber++
 
 		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+		if shouldSkipEnvLine(line) {
 			continue
 		}
 
-		key, value, found := strings.Cut(line, "=")
-		if !found {
-			return fmt.Errorf("parse env file %q line %d: missing '='", path, lineNumber)
-		}
-
-		key = strings.TrimSpace(key)
-		value = strings.TrimSpace(value)
-		if key == "" {
-			return fmt.Errorf("parse env file %q line %d: empty key", path, lineNumber)
-		}
-
-		// Preserve real environment variables set by the shell or orchestrator.
-		if _, exists := os.LookupEnv(key); exists {
-			continue
-		}
-
-		if err := os.Setenv(key, trimQuotes(value)); err != nil {
-			return fmt.Errorf("set env %q from %q line %d: %w", key, path, lineNumber, err)
+		if err := setEnvFromLine(path, lineNumber, line); err != nil {
+			return err
 		}
 	}
 
@@ -61,6 +45,43 @@ func LoadEnv(path string) (err error) {
 	}
 
 	return nil
+}
+
+func shouldSkipEnvLine(line string) bool {
+	return line == "" || strings.HasPrefix(line, "#")
+}
+
+func setEnvFromLine(path string, lineNumber int, line string) error {
+	key, value, err := parseEnvLine(path, lineNumber, line)
+	if err != nil {
+		return err
+	}
+
+	// Preserve real environment variables set by the shell or orchestrator.
+	if _, exists := os.LookupEnv(key); exists {
+		return nil
+	}
+
+	if err := os.Setenv(key, trimQuotes(value)); err != nil {
+		return fmt.Errorf("set env %q from %q line %d: %w", key, path, lineNumber, err)
+	}
+
+	return nil
+}
+
+func parseEnvLine(path string, lineNumber int, line string) (string, string, error) {
+	key, value, found := strings.Cut(line, "=")
+	if !found {
+		return "", "", fmt.Errorf("parse env file %q line %d: missing '='", path, lineNumber)
+	}
+
+	key = strings.TrimSpace(key)
+	value = strings.TrimSpace(value)
+	if key == "" {
+		return "", "", fmt.Errorf("parse env file %q line %d: empty key", path, lineNumber)
+	}
+
+	return key, value, nil
 }
 
 func trimQuotes(value string) string {
