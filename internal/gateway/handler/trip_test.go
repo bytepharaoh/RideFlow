@@ -3,11 +3,13 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/bytepharoh/rideflow/internal/gateway/client"
 	"github.com/bytepharoh/rideflow/internal/gateway/middleware"
 )
 
@@ -79,7 +81,13 @@ func TestPreviewTripRequestValidateFailures(t *testing.T) {
 func TestTripHandlerPreviewTripSuccess(t *testing.T) {
 	t.Parallel()
 
-	recorder := executePreviewTripRequest(t, `{"origin":"Cairo","destination":"Alexandria"}`)
+	recorder := executePreviewTripRequest(t, &fakeTripClient{
+		result: &client.PreviewTripResult{
+			DistanceKM:   25.0,
+			FareEstimate: 45.0,
+			ETAMinutes:   35,
+		},
+	}, `{"origin":"Cairo","destination":"Alexandria"}`)
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
 	}
@@ -112,7 +120,7 @@ func TestTripHandlerPreviewTripSuccess(t *testing.T) {
 func TestTripHandlerPreviewTripInvalidJSON(t *testing.T) {
 	t.Parallel()
 
-	assertPreviewTripError(t, `{"origin":`, http.StatusBadRequest, "INVALID_REQUEST", "request body must be valid JSON")
+	assertPreviewTripError(t, nil, `{"origin":`, http.StatusBadRequest, "INVALID_REQUEST", "request body must be valid JSON")
 }
 
 func TestTripHandlerPreviewTripValidationFailures(t *testing.T) {
@@ -120,19 +128,41 @@ func TestTripHandlerPreviewTripValidationFailures(t *testing.T) {
 
 	t.Run("origin missing", func(t *testing.T) {
 		t.Parallel()
-		assertPreviewTripError(t, `{"origin":" ","destination":"Alexandria"}`, http.StatusBadRequest, "VALIDATION_ERROR", "origin is required")
+		assertPreviewTripError(t, nil, `{"origin":" ","destination":"Alexandria"}`, http.StatusBadRequest, "VALIDATION_ERROR", "origin is required")
 	})
 
 	t.Run("same places", func(t *testing.T) {
 		t.Parallel()
-		assertPreviewTripError(t, `{"origin":"Cairo","destination":" cairo "}`, http.StatusBadRequest, "VALIDATION_ERROR", "origin and destination must be different")
+		assertPreviewTripError(t, nil, `{"origin":"Cairo","destination":" cairo "}`, http.StatusBadRequest, "VALIDATION_ERROR", "origin and destination must be different")
 	})
 }
 
-func executePreviewTripRequest(t *testing.T, body string) *httptest.ResponseRecorder {
+func TestTripHandlerPreviewTripServiceFailures(t *testing.T) {
+	t.Parallel()
+
+	t.Run("trip service unavailable", func(t *testing.T) {
+		t.Parallel()
+		assertPreviewTripError(t, &fakeTripClient{
+			err: errors.New("service unavailable: dial tcp timeout"),
+		}, `{"origin":"Cairo","destination":"Giza"}`, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "trip service is currently unavailable, please try again")
+	})
+
+	t.Run("unexpected trip client error", func(t *testing.T) {
+		t.Parallel()
+		assertPreviewTripError(t, &fakeTripClient{
+			err: errors.New("boom"),
+		}, `{"origin":"Cairo","destination":"Giza"}`, http.StatusInternalServerError, "INTERNAL_ERROR", "an unexpected error occurred")
+	})
+}
+
+func executePreviewTripRequest(t *testing.T, tripClient tripPreviewer, body string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	handler := NewTripHandler()
+	if tripClient == nil {
+		tripClient = &fakeTripClient{}
+	}
+
+	handler := NewTripHandler(tripClient)
 	req := httptest.NewRequestWithContext(
 		context.Background(),
 		http.MethodPost,
@@ -147,10 +177,10 @@ func executePreviewTripRequest(t *testing.T, body string) *httptest.ResponseReco
 	return recorder
 }
 
-func assertPreviewTripError(t *testing.T, body string, wantStatus int, wantErrorCode string, wantErrorMsg string) {
+func assertPreviewTripError(t *testing.T, tripClient tripPreviewer, body string, wantStatus int, wantErrorCode string, wantErrorMsg string) {
 	t.Helper()
 
-	recorder := executePreviewTripRequest(t, body)
+	recorder := executePreviewTripRequest(t, tripClient, body)
 	if recorder.Code != wantStatus {
 		t.Fatalf("status = %d, want %d", recorder.Code, wantStatus)
 	}
@@ -178,4 +208,21 @@ func assertPreviewTripError(t *testing.T, body string, wantStatus int, wantError
 	if response.Error.RequestID == "" {
 		t.Fatal("error.request_id = empty, want non-empty")
 	}
+}
+
+type fakeTripClient struct {
+	result *client.PreviewTripResult
+	err    error
+}
+
+func (f *fakeTripClient) PreviewTrip(_ context.Context, _, _ string) (*client.PreviewTripResult, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+
+	if f.result != nil {
+		return f.result, nil
+	}
+
+	return &client.PreviewTripResult{}, nil
 }

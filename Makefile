@@ -65,6 +65,10 @@ build-service: ## Build a single service. Usage: make build-service SERVICE=trip
 run-gateway: ## Run the gateway service locally
 	$(GO) run ./$(CMD_DIR)/gateway
 
+.PHONY: check-gateway
+check-gateway: ## Run gateway smoke checks against localhost:8080
+	bash scripts/check-gateway.sh
+
 .PHONY: run-trip
 run-trip: ## Run the trip service locally
 	-$(GO) run ./$(CMD_DIR)/trip

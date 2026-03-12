@@ -1,20 +1,29 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
 
+	"github.com/bytepharoh/rideflow/internal/gateway/client"
 	"github.com/bytepharoh/rideflow/internal/gateway/middleware"
 	"github.com/bytepharoh/rideflow/internal/gateway/response"
 )
 
 type TripHandler struct {
+	tripClient tripPreviewer
 }
 
-func NewTripHandler() *TripHandler {
-	return &TripHandler{}
+type tripPreviewer interface {
+	PreviewTrip(ctx context.Context, origin string, destination string) (*client.PreviewTripResult, error)
+}
+
+func NewTripHandler(tripClient tripPreviewer) *TripHandler {
+	return &TripHandler{
+		tripClient: tripClient,
+	}
 }
 
 // previewTripRequest is the expected JSON body for POST /api/v1/trips/preview.
@@ -50,7 +59,7 @@ func (r previewTripRequest) Validate() error {
 type previewTripResponse struct {
 	DistanceKM   float64 `json:"distance_km"`
 	FareEstimate float64 `json:"fare_estimate"`
-	ETAMinutes   int     `json:"eta_minutes"`
+	ETAMinutes   int32   `json:"eta_minutes"`
 }
 
 // PreviewTrip handles POST /api/v1/trips/preview.
@@ -68,20 +77,37 @@ func (h *TripHandler) PreviewTrip(w http.ResponseWriter, r *http.Request) {
 
 	}
 	if err := req.Validate(); err != nil {
-		response.Error(w,
-			http.StatusBadRequest,
-			"VALIDATION_ERROR",
-			err.Error(),
-			reqID,
-		)
+		response.Error(w, http.StatusBadRequest,
+			"VALIDATION_ERROR", err.Error(), reqID)
 		return
 	}
-	// TODO Phase 5: replace this with a real gRPC call to the Trip Service.
-	resp := previewTripResponse{
-		DistanceKM:   25.0,
-		FareEstimate: 45.00,
-		ETAMinutes:   35,
+
+	result, err := h.tripClient.PreviewTrip(r.Context(), req.Origin, req.Destination)
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "service unavailable") {
+
+			response.Error(w, http.StatusServiceUnavailable,
+				"SERVICE_UNAVAILABLE",
+				"trip service is currently unavailable, please try again",
+				reqID)
+			return
+		}
+		if strings.HasPrefix(err.Error(), "validation") {
+			response.Error(w, http.StatusBadRequest,
+				"VALIDATION_ERROR", err.Error(), reqID)
+			return
+		}
+		response.Error(w, http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"an unexpected error occurred",
+			reqID)
+		return
 	}
-	response.JSON(w, http.StatusOK, resp)
+
+	response.JSON(w, http.StatusOK, previewTripResponse{
+		DistanceKM:   result.DistanceKM,
+		FareEstimate: result.FareEstimate,
+		ETAMinutes:   result.ETAMinutes,
+	})
 
 }

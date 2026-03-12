@@ -17,6 +17,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
+	"github.com/bytepharoh/rideflow/internal/gateway/client"
 	"github.com/bytepharoh/rideflow/internal/gateway/config"
 	"github.com/bytepharoh/rideflow/internal/gateway/handler"
 	"github.com/bytepharoh/rideflow/internal/gateway/middleware"
@@ -30,7 +31,7 @@ type Server struct {
 
 // New builds the server with all routes and middleware registered.
 // It does not start listening — call Start() for that.
-func New(cfg *config.Config, logger *slog.Logger) *Server {
+func New(cfg *config.Config, logger *slog.Logger, tripClient *client.TripClient) *Server {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger(logger))
@@ -39,7 +40,8 @@ func New(cfg *config.Config, logger *slog.Logger) *Server {
 	// ── API v1 routes
 
 	r.Get("/health", healthHandler(cfg.ServiceName))
-	tripHandler := handler.NewTripHandler()
+
+	tripHandler := handler.NewTripHandler(tripClient)
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/trips", func(r chi.Router) {
 			r.Post("/preview", tripHandler.PreviewTrip)

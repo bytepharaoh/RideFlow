@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bytepharoh/rideflow/internal/gateway/client"
 	"github.com/bytepharoh/rideflow/internal/gateway/config"
 	"github.com/bytepharoh/rideflow/internal/gateway/server"
 	pkgconfig "github.com/bytepharoh/rideflow/pkg/config"
@@ -30,7 +31,16 @@ func main() {
 	}
 	log := logger.New(cfg.ServiceName, cfg.LogLevel)
 	log.Info("starting api gateway", "port", cfg.HTTPPort)
-	srv := server.New(cfg, log)
+
+	tripClient, err := client.NewTripClient(cfg.TripServiceAddr)
+	if err != nil {
+		log.Error("failed to create trip client", "error", err)
+		os.Exit(1)
+
+	}
+	log.Info("trip service client created", "addr", cfg.TripServiceAddr)
+
+	srv := server.New(cfg, log, tripClient)
 	go func() {
 		if err := srv.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Error("server exited unexpectedly", "error", err)

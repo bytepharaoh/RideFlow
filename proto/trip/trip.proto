@@ -1,0 +1,15 @@
+syntax = "proto3";
+option go_package = "github.com/bytepharoh/rideflow/internal/trip/gen/proto/trip;tripv1";
+package trip ;
+service TripService {
+    rpc PreviewTrip(PreviewTripRequest) returns (PreviewTripResponse);
+}
+message PreviewTripRequest {
+    string origin = 1;
+    string destination = 2; 
+}
+message PreviewTripResponse {
+    double distance_km = 1;
+    double fare_estimate = 2;
+    int32 eta_minutes = 3;
+}
