@@ -114,14 +114,13 @@ jobs:
       - name: Generate proto files
         run: make proto
 
-      - name: Install test dependencies
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "22"
 
       - name: Install CLI test dependencies
         run: |
-          npm install -g wscat
           go install github.com/fullstorydev/grpcurl/cmd/grpcurl@latest
 
       - name: Wait for RabbitMQ
@@ -184,16 +183,63 @@ jobs:
 
       - name: Run e2e test
         run: |
-          # In CI there is no interactive terminal so we skip the manual
-          # wscat step and connect it automatically in the background.
           RIDER_ID="rider-ci-$$"
           WS_OUTPUT="/tmp/rideflow-ws-ci.txt"
+          WS_READY="/tmp/rideflow-ws-ready"
+          export WS_OUTPUT
+          export WS_URL="ws://localhost:8080/ws?user_id=${RIDER_ID}"
 
-          # Connect wscat in background writing to file
-          wscat -c "ws://localhost:8080/ws?user_id=${RIDER_ID}" \
-            --wait 120 > "$WS_OUTPUT" 2>&1 &
+          # Start a small Node WebSocket client instead of wscat.
+          # This is more reliable in non-interactive CI shells.
+          cat <<'EOF' > /tmp/ws-client.mjs
+          import fs from "node:fs";
+
+          const output = process.env.WS_OUTPUT;
+          const ready = "/tmp/rideflow-ws-ready";
+          const url = process.env.WS_URL;
+
+          const ws = new WebSocket(url);
+
+          ws.addEventListener("open", () => {
+            fs.writeFileSync(ready, "connected\n");
+          });
+
+          ws.addEventListener("message", (event) => {
+            fs.appendFileSync(output, `${event.data}\n`);
+          });
+
+          ws.addEventListener("error", (event) => {
+            const message = event?.message ?? "unknown websocket error";
+            fs.appendFileSync(output, `ERROR: ${message}\n`);
+            process.exit(1);
+          });
+
+          ws.addEventListener("close", () => {
+            process.exit(0);
+          });
+
+          setInterval(() => {}, 1000);
+          EOF
+
+          node /tmp/ws-client.mjs > /tmp/ws-client.log 2>&1 &
           WS_PID=$!
-          sleep 2
+
+          for i in $(seq 1 10); do
+            if [ -f "$WS_READY" ]; then
+              echo "WebSocket client connected"
+              break
+            fi
+            sleep 1
+          done
+
+          if [ ! -f "$WS_READY" ]; then
+            echo "ERROR: WebSocket client failed to connect"
+            echo "--- WS client logs ---"
+            cat /tmp/ws-client.log || true
+            echo "--- Gateway logs ---"
+            cat /tmp/gateway.log || true
+            exit 1
+          fi
 
           # Register driver
           DRIVER_RESPONSE=$(grpcurl -plaintext \
@@ -235,6 +281,10 @@ jobs:
 
           if ! grep -q "driver_assigned" "$WS_OUTPUT"; then
             echo "ERROR: No WebSocket push received"
+            echo "--- WS client logs ---"
+            cat /tmp/ws-client.log || true
+            echo "--- WS output ---"
+            cat "$WS_OUTPUT" || true
             echo "--- Gateway logs ---"
             cat /tmp/gateway.log
             echo "--- Driver logs ---"
