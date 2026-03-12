@@ -11,15 +11,34 @@ import (
 	"github.com/google/uuid"
 
 	tripconfig "github.com/bytepharoh/rideflow/internal/trip/config"
+	tripconsumer "github.com/bytepharoh/rideflow/internal/trip/consumer"
 	"github.com/bytepharoh/rideflow/internal/trip/domain"
 	"github.com/bytepharoh/rideflow/internal/trip/repository"
 	"github.com/bytepharoh/rideflow/internal/trip/server"
 	"github.com/bytepharoh/rideflow/internal/trip/service"
 	pkgconfig "github.com/bytepharoh/rideflow/pkg/config"
 	"github.com/bytepharoh/rideflow/pkg/logger"
+	"github.com/bytepharoh/rideflow/pkg/messaging/events"
+	"github.com/bytepharoh/rideflow/pkg/messaging/rabbitmq"
 )
 
 func main() {
+	cfg, log := mustLoadTripBootstrap()
+	log.Info("starting trip service", "http_port", cfg.HTTPPort, "grpc_port", cfg.GRPCPort)
+
+	rabbitConn, publisher, consumerConn := mustSetupTripMessaging(cfg, log)
+	defer closeWithLog(log, "rabbitmq connection", rabbitConn.Close)
+	defer closeWithLog(log, "rabbitmq publisher", publisher.Close)
+	defer closeWithLog(log, "rabbitmq consumer", consumerConn.Close)
+
+	svc := buildTripService(publisher, log)
+	driverConsumer := tripconsumer.NewDriverConsumer(svc, consumerConn, log)
+	srv := server.New(cfg.HTTPPort, cfg.GRPCPort, cfg.ServiceName, log, svc)
+
+	runTripProcess(log, cfg.ShutdownTimeout, srv.Start(), srv.Shutdown, driverConsumer)
+}
+
+func mustLoadTripBootstrap() (*tripconfig.Config, *slog.Logger) {
 	if err := pkgconfig.LoadEnv(".env"); err != nil {
 		slog.Error("failed to load .env", "error", err)
 		os.Exit(1)
@@ -31,39 +50,65 @@ func main() {
 		os.Exit(1)
 	}
 
-	log := logger.New(cfg.ServiceName, cfg.LogLevel)
-	log.Info("starting trip service",
-		"http_port", cfg.HTTPPort,
-		"grpc_port", cfg.GRPCPort,
-	)
+	return cfg, logger.New(cfg.ServiceName, cfg.LogLevel)
+}
 
-	// ── Build the dependency chain ────────────────────────
-	//
-	// We build from the bottom up:
-	// repository → fare calculator → service → grpc server
-	//
-	// Each layer only depends on the layer below it.
-	// main.go is the only place that knows about all layers.
+func mustSetupTripMessaging(cfg *tripconfig.Config, log *slog.Logger) (*rabbitmq.Connection, *rabbitmq.Publisher, *rabbitmq.Consumer) {
+	rabbitConn, err := rabbitmq.NewConnection(cfg.RabbitMQURL, log)
+	if err != nil {
+		log.Error("failed to connect to rabbitmq", "error", err)
+		os.Exit(1)
+	}
 
-	// 1. Repository — in-memory until Phase 11
+	publisher, err := rabbitmq.NewPublisher(rabbitConn, events.Exchange)
+	if err != nil {
+		log.Error("failed to create publisher", "error", err)
+		os.Exit(1)
+	}
+
+	consumerConn, err := rabbitmq.NewConsumer(rabbitConn, events.Exchange, log)
+	if err != nil {
+		log.Error("failed to create consumer", "error", err)
+		os.Exit(1)
+	}
+
+	return rabbitConn, publisher, consumerConn
+}
+
+func buildTripService(publisher *rabbitmq.Publisher, log *slog.Logger) *service.TripService {
 	repo := repository.NewInMemoryTripRepository()
-
-	// 2. Fare calculator with default config
 	fareCalc := domain.NewCalculator(domain.DefaultFareConfig())
 
-	// 3. Service layer — inject repository and calculator
-	svc := service.New(
-		repo,
-		fareCalc,
-		uuid.NewString, // ID generator — produces a real UUID per trip
-		log,
-	)
+	return service.New(repo, fareCalc, uuid.NewString, publisher, log)
+}
 
-	// 4. Build and start the server with the service injected
-	srv := server.New(cfg.HTTPPort, cfg.GRPCPort, cfg.ServiceName, log, svc)
+func runTripProcess(
+	log *slog.Logger,
+	shutdownTimeout time.Duration,
+	errCh <-chan error,
+	shutdown func(context.Context),
+	driverConsumer *tripconsumer.DriverConsumer,
+) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	errCh := srv.Start()
+	go func() {
+		if err := driverConsumer.Start(ctx); err != nil {
+			log.Error("driver consumer error", "error", err)
+		}
+	}()
 
+	waitForSignal(log, errCh)
+	cancel()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer shutdownCancel()
+
+	shutdown(shutdownCtx)
+	log.Info("trip service stopped")
+}
+
+func waitForSignal(log *slog.Logger, errCh <-chan error) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
@@ -73,9 +118,10 @@ func main() {
 	case err := <-errCh:
 		log.Error("server error", "error", err)
 	}
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	srv.Shutdown(ctx)
+func closeWithLog(log *slog.Logger, name string, closeFn func() error) {
+	if err := closeFn(); err != nil {
+		log.Error("failed to close resource", "resource", name, "error", err)
+	}
 }

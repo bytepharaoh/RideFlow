@@ -45,6 +45,8 @@ func New(cfg *config.Config, logger *slog.Logger, tripClient *client.TripClient)
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Route("/trips", func(r chi.Router) {
 			r.Post("/preview", tripHandler.PreviewTrip)
+			r.Post("/", tripHandler.CreateTrip)
+			r.Get("/{id}", tripHandler.GetTrip)
 		})
 	})
 	// 404 handler

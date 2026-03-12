@@ -1,15 +1,51 @@
 syntax = "proto3";
+
+package trip;
+
 option go_package = "github.com/bytepharoh/rideflow/internal/trip/gen/proto/trip;tripv1";
-package trip ;
+
 service TripService {
-    rpc PreviewTrip(PreviewTripRequest) returns (PreviewTripResponse);
+  rpc PreviewTrip(PreviewTripRequest) returns (PreviewTripResponse);
+  rpc CreateTrip(CreateTripRequest) returns (CreateTripResponse);
+  rpc GetTrip(GetTripRequest) returns (GetTripResponse);
 }
+
 message PreviewTripRequest {
-    string origin = 1;
-    string destination = 2; 
+  string origin = 1;
+  string destination = 2;
 }
+
 message PreviewTripResponse {
-    double distance_km = 1;
-    double fare_estimate = 2;
-    int32 eta_minutes = 3;
+  double distance_km = 1;
+  double fare_estimate = 2;
+  int32 eta_minutes = 3;
+}
+
+message CreateTripRequest {
+  string rider_id = 1;
+  string origin = 2;
+  string destination = 3;
+  double origin_lat = 4;
+  double origin_lng = 5;
+}
+
+message CreateTripResponse {
+  string trip_id = 1;
+  string status = 2;
+  double fare_estimate = 3;
+}
+
+message GetTripRequest {
+  string trip_id = 1;
+}
+
+message GetTripResponse {
+  string trip_id = 1;
+  string rider_id = 2;
+  string driver_id = 3;
+  string origin = 4;
+  string destination = 5;
+  string status = 6;
+  double fare_estimate = 7;
+  double final_fare = 8;
 }

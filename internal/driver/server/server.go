@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	driverv1 "github.com/bytepharoh/rideflow/internal/driver/gen/proto/driver"
 	drivergrpc "github.com/bytepharoh/rideflow/internal/driver/grpc"
@@ -38,6 +39,7 @@ func New(httpPort, grpcPort int, serviceName string, logger *slog.Logger, svc *s
 
 	grpcSrv := grpc.NewServer()
 	driverv1.RegisterDriverServiceServer(grpcSrv, drivergrpc.New(svc, logger))
+	reflection.Register(grpcSrv)
 
 	return &Server{
 		logger:   logger,

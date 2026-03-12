@@ -94,6 +94,7 @@ func newTestServer() *Server {
 		repository.NewInMemoryTripRepository(),
 		domain.NewCalculator(domain.DefaultFareConfig()),
 		func() string { return "trip-test-id" },
+		nil,
 		logger,
 	)
 

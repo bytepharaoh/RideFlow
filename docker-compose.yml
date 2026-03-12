@@ -1,0 +1,15 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: rideflow-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP protocol port — services connect here
+      - "15672:15672"  # Management UI — browser dashboard
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

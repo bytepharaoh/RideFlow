@@ -12,6 +12,7 @@ import (
 	tripgrpc "github.com/bytepharoh/rideflow/internal/trip/grpc"
 	tripservice "github.com/bytepharoh/rideflow/internal/trip/service"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 type Server struct {
@@ -38,6 +39,7 @@ func New(httpPort int, grpcPort int, serviceName string, logger *slog.Logger, sv
 	grpcSrv := grpc.NewServer()
 	tripGRPCServer := tripgrpc.New(svc, logger)
 	tripv1.RegisterTripServiceServer(grpcSrv, tripGRPCServer)
+	reflection.Register(grpcSrv)
 
 	return &Server{
 		http:         httpSrv,

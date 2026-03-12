@@ -13,6 +13,7 @@ type Config struct {
 	MongoURI    string
 	MongoDB     string
 	LogLevel    string
+	RabbitMQURL string
 }
 
 func Load() (*Config, error) {
@@ -33,5 +34,6 @@ func Load() (*Config, error) {
 		MongoURI:    pkgconfig.GetString("DRIVER_MONGO_URI", "mongodb://localhost:27017"),
 		MongoDB:     pkgconfig.GetString("DRIVER_MONGO_DB", "rideflow_driver"),
 		LogLevel:    pkgconfig.GetString("DRIVER_LOG_LEVEL", "info"),
+		RabbitMQURL: pkgconfig.GetString("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 	}, nil
 }

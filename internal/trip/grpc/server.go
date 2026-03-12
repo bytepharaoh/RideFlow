@@ -45,3 +45,39 @@ func (s *Server) PreviewTrip(
 		EtaMinutes:   int32(result.ETAMinutes),
 	}, nil
 }
+func (s *Server) CreateTrip(ctx context.Context, req *tripv1.CreateTripRequest) (*tripv1.CreateTripResponse, error) {
+	trip, err := s.svc.CreateTrip(ctx, service.CreateTripInput{
+		RiderID:     req.GetRiderId(),
+		Origin:      req.GetOrigin(),
+		Destination: req.GetDestination(),
+		OriginLat:   req.GetOriginLat(),
+		OriginLng:   req.GetOriginLng(),
+	})
+	if err != nil {
+		s.logger.Error("create trip failed", "error", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &tripv1.CreateTripResponse{
+		TripId:       trip.ID,
+		Status:       string(trip.Status),
+		FareEstimate: trip.FareEstimate,
+	}, nil
+}
+func (s *Server) GetTrip(ctx context.Context, req *tripv1.GetTripRequest) (*tripv1.GetTripResponse, error) {
+	trip, err := s.svc.GetTrip(ctx, req.GetTripId())
+	if err != nil {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+
+	return &tripv1.GetTripResponse{
+		TripId:       trip.ID,
+		RiderId:      trip.RiderID,
+		DriverId:     trip.DriverID,
+		Origin:       trip.Origin,
+		Destination:  trip.Destination,
+		Status:       string(trip.Status),
+		FareEstimate: trip.FareEstimate,
+		FinalFare:    trip.FinalFare,
+	}, nil
+}

@@ -21,6 +21,7 @@ type Config struct {
 	MongoDB         string
 	LogLevel        string
 	ShutdownTimeout time.Duration
+	RabbitMQURL     string
 }
 
 func Load() (*Config, error) {
@@ -44,5 +45,6 @@ func Load() (*Config, error) {
 		MongoDB:         pkgconfig.GetString("TRIP_MONGO_DB", "rideflow_trip"),
 		LogLevel:        pkgconfig.GetString("TRIP_LOG_LEVEL", "info"),
 		ShutdownTimeout: time.Duration(shutdownTimeoutSeconds) * time.Second,
+		RabbitMQURL:     pkgconfig.GetString("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 	}, nil
 }
