@@ -245,6 +245,7 @@ The project uses layered validation:
 Common commands:
 
 ```bash
+make help
 make lint
 make test
 make build
